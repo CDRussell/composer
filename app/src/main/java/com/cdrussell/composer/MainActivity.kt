@@ -54,14 +54,6 @@ fun MainActivityRoot(model: MainActivityViewModel = viewModel()) {
     }
 }
 
-
-
-
-
-
-
-
-
 @Composable
 fun MainActivityContent(password: String, historical: List<String>, viewModel: MainActivityViewModel = viewModel()) {
     HeroImage()
@@ -139,7 +131,6 @@ fun GeneratePasswordButton(viewModel: MainActivityViewModel = viewModel()) {
 }
 
 
-
 class MainActivityViewModel : ViewModel() {
 
     val currentPasswordViewState: MutableLiveData<String> = MutableLiveData()
@@ -151,6 +142,8 @@ class MainActivityViewModel : ViewModel() {
     fun generatePassword(): String {
         val pw = "" + Random.nextInt(1_000_000, 99_999_999)
         currentPasswordViewState.value?.let {
+
+            // Bug: historicalPasswords should never be null, but happening on occasions
             historicalPasswords?.let {list ->
                 list.add(it)
                 previousPasswordsViewState.value = historicalPasswords
