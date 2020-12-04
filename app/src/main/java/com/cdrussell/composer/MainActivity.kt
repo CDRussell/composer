@@ -1,7 +1,6 @@
 package com.cdrussell.composer
 
 import android.os.Bundle
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -13,8 +12,8 @@ import androidx.compose.material.Divider
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -25,14 +24,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.viewModel
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.cdrussell.composer.ui.ComposerTheme
 import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -48,33 +46,41 @@ class MainActivity : AppCompatActivity() {
 fun MainActivityRoot(model: MainActivityViewModel = viewModel()) {
     Column(modifier = Modifier.fillMaxHeight()) {
         Column(modifier = Modifier.weight(1f).padding(4.dp)) {
-            val password: String by model.viewState.observeAsState("ABC")
-            MainActivityContent(password)
+            val password: String by model.currentPasswordViewState.observeAsState("")
+            val historical: List<String> by model.previousPasswordsViewState.observeAsState(emptyList())
+
+            MainActivityContent(password, historical.reversed())
         }
     }
 }
 
+
+
+
+
+
+
+
+
 @Composable
-fun MainActivityContent(password: String) {
+fun MainActivityContent(password: String, historical: List<String>, viewModel: MainActivityViewModel = viewModel()) {
     HeroImage()
 
-    HeadingGreeting("Password Composer")
+    LargeSectionTitle("Password Composer")
     Divider()
 
     Password(password)
-
     GeneratePasswordButton()
 
     Divider()
-    Spacer(Modifier.padding(10.dp))
-    HeadingGreeting("History")
-    PreviousPasswordList(listOf("correct", "horse", "battery", "staple"), onPasswordClicked = {
-        Log.i("MainActivity", "Password clicked: $it")
-    })
+
+    LargeSectionTitle("History")
+    PreviousPasswordList(historical, onPasswordClicked = { viewModel.oldPasswordSelected(it) })
 }
 
+
 @Composable
-fun PreviousPasswordList(passwords: List<String>, onPasswordClicked: (String) -> Unit) {
+fun PreviousPasswordList(passwords: List<String> = emptyList(), onPasswordClicked: (String) -> Unit) {
     LazyColumnFor(passwords) { password ->
         PasswordListItem(password, onPasswordClicked)
     }
@@ -82,9 +88,7 @@ fun PreviousPasswordList(passwords: List<String>, onPasswordClicked: (String) ->
 
 @Composable
 fun PasswordListItem(password: String, onPasswordClicked: (String) -> Unit) {
-    Text(
-        password,
-        Modifier.clickable(onClick = { onPasswordClicked(password) })
+    Text(password, Modifier.clickable(onClick = { onPasswordClicked(password) })
             .fillMaxWidth()
             .padding(6.dp),
         style = MaterialTheme.typography.body1.copy(fontSize = TextUnit.Companion.Sp(20))
@@ -98,14 +102,15 @@ fun HeroImage() {
         modifier = Modifier
             .preferredHeight(180.dp)
             .fillMaxWidth()
-            .clip(shape = RoundedCornerShape(4.dp)),
+            .clip(shape = RoundedCornerShape(8.dp)),
         contentScale = ContentScale.Crop
 
     )
 }
 
 @Composable
-fun HeadingGreeting(value: String) {
+fun LargeSectionTitle(value: String) {
+    Spacer(Modifier.padding(12.dp))
     Text(
         text = value,
         style = MaterialTheme.typography.h6
@@ -133,15 +138,34 @@ fun GeneratePasswordButton(viewModel: MainActivityViewModel = viewModel()) {
     }
 }
 
-class MainActivityViewModel: ViewModel() {
 
-    private val _viewState = MutableLiveData("")
-    val viewState: LiveData<String> = _viewState
+
+class MainActivityViewModel : ViewModel() {
+
+    val currentPasswordViewState: MutableLiveData<String> = MutableLiveData()
+    val previousPasswordsViewState: MutableLiveData<List<String>> = MutableLiveData()
+
+    private val currentPassword: String = generatePassword()
+    private val historicalPasswords: MutableList<String>? = mutableListOf()
 
     fun generatePassword(): String {
         val pw = "" + Random.nextInt(1_000_000, 99_999_999)
-        _viewState.value = (pw)
+        currentPasswordViewState.value?.let {
+            historicalPasswords?.let {list ->
+                list.add(it)
+                previousPasswordsViewState.value = historicalPasswords
+            }
+        }
+        currentPasswordViewState.value = (pw)
         return pw
+    }
+
+    fun oldPasswordSelected(password: String) {
+        historicalPasswords?.let { list ->
+            if(!list.contains(currentPassword)) list.add(currentPassword)
+        }
+        previousPasswordsViewState.value = historicalPasswords
+        currentPasswordViewState.value = password
     }
 
 }
